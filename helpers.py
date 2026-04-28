@@ -1,12 +1,20 @@
 """
-helpers.py — shared X API + AI helpers for Reply Agent.
+helpers.py — shared X API + AI helpers for Tomer Avital Reply Agent.
 """
 
 from __future__ import annotations
 import streamlit as st
 import tweepy
 import anthropic
+import json
+from pathlib import Path
 
+# ── Tomer's fixed config ───────────────────────────────────────────────────────
+TOMER_HANDLE   = "TomerAvital1"
+TOMER_NAME_HE  = "תומר אביטל"
+TOMER_NAME_EN  = "Tomer Avital"
+APP_TITLE      = "תומר אביטל · Reply Agent"
+APP_ICON       = "🎯"
 
 # ── API clients ────────────────────────────────────────────────────────────────
 @st.cache_resource
@@ -20,7 +28,6 @@ def get_x_client() -> tweepy.Client:
         wait_on_rate_limit=True,
     )
 
-
 @st.cache_resource
 def get_anthropic_client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
@@ -33,17 +40,24 @@ def fetch_user_id(handle: str) -> str | None:
         resp = get_x_client().get_user(username=handle.lstrip("@").strip())
         return str(resp.data.id) if resp.data else None
     except Exception as e:
-        st.error(f"Could not find @{handle}: {e}")
+        st.error(f"לא נמצא @{handle}: {e}")
         return None
 
 
-@st.cache_data(ttl=3600)
-def fetch_client_tweets(user_id: str, max_pages: int = 16) -> list[str]:
-    """
-    Fetch up to 3,200 of the client's own tweets for tone analysis.
-    Tweepy's Paginator handles pagination automatically.
-    max_pages × 200 tweets = up to 3,200 (API max).
-    """
+@st.cache_data(ttl=7200)
+def fetch_tomer_tone_profile() -> str:
+    """Fetch Tomer's tweets and build his tone profile."""
+    uid = fetch_user_id(TOMER_HANDLE)
+    if not uid:
+        return ""
+    tweets = fetch_client_tweets(uid)
+    if not tweets:
+        return ""
+    return build_tone_profile(tuple(tweets))
+
+
+@st.cache_data(ttl=7200)
+def fetch_client_tweets(user_id: str, max_results: int = 3200) -> list[str]:
     client = get_x_client()
     texts: list[str] = []
     try:
@@ -53,10 +67,10 @@ def fetch_client_tweets(user_id: str, max_pages: int = 16) -> list[str]:
             max_results=200,
             tweet_fields=["text"],
             exclude=["retweets", "replies"],
-        ).flatten(limit=3200):
+        ).flatten(limit=max_results):
             texts.append(page.text)
     except Exception as e:
-        st.warning(f"Stopped fetching at {len(texts)} tweets: {e}")
+        st.warning(f"עצרנו אחרי {len(texts)} ציוצים: {e}")
     return texts
 
 
@@ -72,7 +86,7 @@ def fetch_target_tweets(user_id: str, count: int = 5) -> list[dict]:
             return []
         return [{"id": str(t.id), "text": t.text, "created_at": str(t.created_at)} for t in resp.data]
     except Exception as e:
-        st.error(f"Error fetching target tweets: {e}")
+        st.error(f"שגיאה בטעינת ציוצים: {e}")
         return []
 
 
@@ -81,18 +95,13 @@ def post_reply(tweet_id: str, reply_text: str) -> bool:
         get_x_client().create_tweet(text=reply_text, in_reply_to_tweet_id=tweet_id)
         return True
     except Exception as e:
-        st.error(f"Failed to post reply: {e}")
+        st.error(f"שגיאה בפרסום: {e}")
         return False
 
 
 # ── AI helpers ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=7200)
 def build_tone_profile(samples: tuple[str, ...]) -> str:
-    """
-    Build a detailed tone profile from up to 3,200 sample tweets.
-    Sends up to 500 tweets (to stay within token limits) for analysis.
-    """
-    # Use up to 500 of the most recent tweets, trimmed to ~60k chars total
     subset = list(samples[:500])
     joined = "\n---\n".join(subset)
     if len(joined) > 60_000:
@@ -100,23 +109,25 @@ def build_tone_profile(samples: tuple[str, ...]) -> str:
 
     msg = get_anthropic_client().messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=1000,
+        max_tokens=1200,
         messages=[{
             "role": "user",
             "content": (
-                f"You are analysing {len(subset)} tweets from a single person to build a detailed ghostwriting profile.\n\n"
-                "Return a structured tone profile covering ALL of the following:\n"
-                "1. Voice & personality (formal/casual, confident/humble, etc.)\n"
-                "2. Vocabulary level and favourite words/phrases\n"
-                "3. Sentence structure (short punchy vs. long detailed)\n"
-                "4. Humour style (dry, sarcastic, none, self-deprecating, etc.)\n"
-                "5. Recurring topics and themes\n"
-                "6. Emoji usage (none / occasional / heavy)\n"
+                f"You are analysing {len(subset)} tweets from Tomer Avital (@TomerAvital1), "
+                "an Israeli civic entrepreneur, investigative journalist, author, and co-founder of Shakuf and Lobby 99. "
+                "He writes primarily in Hebrew and is known for sharp, direct civic commentary.\n\n"
+                "Build a detailed ghostwriting profile covering:\n"
+                "1. Voice & personality\n"
+                "2. Vocabulary and favourite phrases (in Hebrew)\n"
+                "3. Sentence structure\n"
+                "4. Humour and sarcasm style\n"
+                "5. Recurring topics (democracy, transparency, media, politics)\n"
+                "6. Emoji usage\n"
                 "7. Hashtag usage\n"
-                "8. How they engage with others (supportive, challenging, neutral)\n"
-                "9. Any distinctive quirks or patterns\n"
-                "10. Things to AVOID (patterns that would break the voice)\n\n"
-                "Be specific and concrete. This profile will be used to write replies that are indistinguishable from the real person.\n\n"
+                "8. How he engages with others\n"
+                "9. Distinctive quirks\n"
+                "10. Things to AVOID\n\n"
+                "Be very specific — this will be used to write replies indistinguishable from Tomer himself.\n\n"
                 f"TWEETS:\n{joined}"
             )
         }]
@@ -131,64 +142,207 @@ def generate_reply(tweet_text: str, tone_profile: str, author_handle: str) -> st
         messages=[{
             "role": "user",
             "content": (
-                "You are ghostwriting a reply on X (Twitter) for a client.\n\n"
-                f"CLIENT TONE PROFILE:\n{tone_profile}\n\n"
+                f"You are ghostwriting a reply on X for Tomer Avital (@TomerAvital1), "
+                "Israeli civic entrepreneur and investigative journalist.\n\n"
+                f"TOMER'S TONE PROFILE:\n{tone_profile}\n\n"
                 f"TWEET TO REPLY TO (by @{author_handle}):\n{tweet_text}\n\n"
                 "Write ONE reply that:\n"
-                "- Sounds exactly like the client — match their voice precisely\n"
-                "- Is relevant, adds value, or sparks engagement\n"
-                "- Is under 270 characters (leave buffer)\n"
-                "- Follows the client's emoji and hashtag habits\n"
-                "- No quotes, no preamble — reply text only"
+                "- Sounds exactly like Tomer — match his voice precisely\n"
+                "- Is in Hebrew unless the original tweet is in English\n"
+                "- Is sharp, direct, and on-brand for a civic journalist\n"
+                "- Is under 270 characters\n"
+                "- No preamble — reply text only"
             )
         }]
     )
     return msg.content[0].text.strip()
 
 
+# ── Poller config sync ─────────────────────────────────────────────────────────
+def save_poller_config():
+    config = {
+        "client_handle": TOMER_HANDLE,
+        "tone_profile": st.session_state.get("tone_profile", ""),
+        "target_accounts": st.session_state.get("target_accounts", []),
+    }
+    config_path = Path(__file__).parent / "poller_config.json"
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+
+
 # ── Shared CSS ─────────────────────────────────────────────────────────────────
 GLOBAL_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
 
-html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
-.stApp { background: #0d0d0d; color: #e8e8e8; }
-h1, h2, h3 { font-family: 'DM Mono', monospace !important; letter-spacing: -0.03em; }
+html, body, [class*="css"] {
+    font-family: 'Heebo', sans-serif;
+}
 
+.stApp { background: #0a0a0a; color: #f0f0f0; }
+
+h1, h2, h3 {
+    font-family: 'Heebo', sans-serif !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.02em;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: #111111 !important;
+    border-right: 1px solid #222;
+}
+
+/* Brand header */
+.brand-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 1px solid #e94560;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+}
+.brand-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #e94560, #f5a623, #e94560);
+}
+.brand-name-he {
+    font-family: 'Heebo', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    color: #ffffff;
+    direction: rtl;
+    margin: 0;
+    line-height: 1.2;
+}
+.brand-name-en {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #e94560;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+.brand-desc {
+    font-size: 12px;
+    color: #888;
+    margin-top: 8px;
+    direction: rtl;
+}
+
+/* Tweet cards */
 .tweet-card {
-    background: #161616; border: 1px solid #2a2a2a;
-    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    background: #141414;
+    border: 1px solid #222;
+    border-left: 3px solid #e94560;
+    border-radius: 0 10px 10px 0;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    transition: border-color 0.2s, transform 0.1s;
 }
-.tweet-card:hover { border-color: #444; }
-.tweet-author { font-family: 'DM Mono', monospace; font-size: 13px; color: #888; margin-bottom: 8px; }
-.tweet-text { font-size: 15px; line-height: 1.6; color: #e0e0e0; margin-bottom: 4px; }
+.tweet-card:hover {
+    border-color: #333;
+    border-left-color: #f5a623;
+}
+.tweet-author {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: #e94560;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+.tweet-text {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #e0e0e0;
+    direction: rtl;
+    text-align: right;
+}
+.tweet-text-ltr {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #e0e0e0;
+}
+
+/* Reply box */
 .reply-box {
-    background: #1a2a1a; border: 1px solid #2d4a2d;
-    border-radius: 8px; padding: 14px; font-size: 14px;
-    line-height: 1.6; color: #c8f0c8; margin-bottom: 10px;
+    background: #0d1f0d;
+    border: 1px solid #1a3a1a;
+    border-left: 3px solid #22c55e;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #86efac;
+    direction: rtl;
+    text-align: right;
+    margin-bottom: 10px;
 }
+
+/* Tone box */
 .tone-box {
-    background: #111; border-left: 3px solid #4a9eff;
-    padding: 12px 16px; border-radius: 0 8px 8px 0;
-    font-size: 13px; color: #aaa; font-family: 'DM Mono', monospace;
+    background: #0d0d1f;
+    border-left: 3px solid #e94560;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 12px;
+    color: #aaa;
+    font-family: 'DM Mono', monospace;
+    direction: rtl;
+    text-align: right;
 }
+
+/* Status pills */
 .status-pill {
-    display: inline-block; padding: 3px 10px; border-radius: 20px;
-    font-size: 11px; font-family: 'DM Mono', monospace;
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
 }
-.pill-posted  { background: #1a2a1a; color: #5db85d; border: 1px solid #2d4a2d; }
-.pill-pending { background: #2a2a1a; color: #c8b84a; border: 1px solid #4a4a2d; }
-.pill-failed  { background: #2a1a1a; color: #c85d5d; border: 1px solid #4a2d2d; }
-.pill-cancelled { background: #1e1e1e; color: #777; border: 1px solid #333; }
+.pill-posted    { background: #0d2010; color: #4ade80; border: 1px solid #166534; }
+.pill-pending   { background: #1c1700; color: #fbbf24; border: 1px solid #854d0e; }
+.pill-failed    { background: #200d0d; color: #f87171; border: 1px solid #991b1b; }
+.pill-cancelled { background: #161616; color: #777;    border: 1px solid #333; }
+.pill-draft     { background: #0d1520; color: #60a5fa; border: 1px solid #1e3a5f; }
+
+/* Section label */
 .section-label {
-    font-family: 'DM Mono', monospace; font-size: 11px; color: #555;
-    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: #555;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
 }
+
+/* Stat cards */
 .stat-card {
-    background: #161616; border: 1px solid #2a2a2a; border-radius: 10px;
-    padding: 16px; text-align: center;
+    background: #141414;
+    border: 1px solid #222;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
 }
-.stat-num { font-family: 'DM Mono', monospace; font-size: 28px; color: #4a9eff; }
-.stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+.stat-num   { font-family: 'Heebo', sans-serif; font-size: 30px; font-weight: 900; color: #e94560; }
+.stat-label { font-size: 11px; color: #666; margin-top: 4px; }
+
+/* Page title */
+.page-title {
+    font-family: 'Heebo', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    color: #ffffff;
+    direction: rtl;
+    text-align: right;
+    border-bottom: 2px solid #e94560;
+    padding-bottom: 8px;
+    margin-bottom: 24px;
+}
+.page-title span { color: #e94560; }
 </style>
 """
