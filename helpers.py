@@ -170,6 +170,21 @@ def save_poller_config():
         json.dump(config, f, indent=2, ensure_ascii=False)
 
 
+
+# ── Tone profile disk cache ────────────────────────────────────────────────────
+TONE_PROFILE_PATH = Path(__file__).parent / "tomer_tone_profile.json"
+
+def save_tone_profile_to_disk(profile: str, tweet_count: int):
+    with open(TONE_PROFILE_PATH, "w", encoding="utf-8") as f:
+        json.dump({"profile": profile, "tweet_count": tweet_count}, f, ensure_ascii=False)
+
+def load_tone_profile_from_disk() -> dict | None:
+    if TONE_PROFILE_PATH.exists():
+        with open(TONE_PROFILE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    return None
+
+
 # ── Shared CSS ─────────────────────────────────────────────────────────────────
 GLOBAL_CSS = """
 <style>

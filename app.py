@@ -10,6 +10,7 @@ from helpers import (
     GLOBAL_CSS, TOMER_HANDLE, TOMER_NAME_HE, TOMER_NAME_EN, APP_TITLE, APP_ICON,
     fetch_user_id, fetch_client_tweets, fetch_target_tweets,
     build_tone_profile, generate_reply, post_reply, save_poller_config,
+    save_tone_profile_to_disk, load_tone_profile_from_disk,
 )
 from db import (
     log_posted_reply, schedule_reply, fetch_due_scheduled,
@@ -28,6 +29,7 @@ for key, default in {
     "feed": {},
     "posted": set(),
     "last_auto_check": 0.0,
+    "confirm_refresh": False,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
@@ -45,7 +47,7 @@ def run_scheduler():
     posted_count = 0
     for row in due:
         if row.get("status") == "draft":
-            continue  # drafts need manual approval
+            continue
         success = post_reply(row["tweet_id"], row["reply_text"])
         if success:
             update_scheduled_status(row["id"], "posted")
@@ -69,7 +71,6 @@ run_scheduler()
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    # Brand block
     st.markdown(f"""
     <div class="brand-header">
         <div class="brand-name-he">{TOMER_NAME_HE}</div>
@@ -81,6 +82,13 @@ with st.sidebar:
     # ── Tone profile ──────────────────────────────────────────────────────────
     st.markdown('<div class="section-label">פרופיל טון</div>', unsafe_allow_html=True)
 
+    # Auto-load from disk on every startup
+    if not st.session_state.tone_profile:
+        saved = load_tone_profile_from_disk()
+        if saved:
+            st.session_state.tone_profile = saved["profile"]
+            st.session_state.tweet_count  = saved["tweet_count"]
+
     if st.session_state.tone_profile:
         st.success(f"✅ פרופיל טון טעון ({st.session_state.tweet_count} ציוצים)")
         with st.expander("הצג פרופיל טון"):
@@ -88,21 +96,36 @@ with st.sidebar:
                 f'<div class="tone-box">{st.session_state.tone_profile}</div>',
                 unsafe_allow_html=True
             )
+
         if st.button("🔄 רענן פרופיל", use_container_width=True):
-            st.cache_data.clear()
-            st.session_state.tone_profile = None
-            st.rerun()
+            st.session_state["confirm_refresh"] = True
+
+        if st.session_state.get("confirm_refresh"):
+            st.error("⚠️ **פעולה יקרה!**\nטעינת פרופיל טון עולה כ-$20-25.\nהאם אתה בטוח?")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("✅ כן, רענן", use_container_width=True):
+                    st.session_state["confirm_refresh"] = False
+                    st.cache_data.clear()
+                    st.session_state.tone_profile = None
+                    st.session_state.tweet_count = 0
+                    st.rerun()
+            with c2:
+                if st.button("❌ ביטול", use_container_width=True):
+                    st.session_state["confirm_refresh"] = False
+                    st.rerun()
     else:
         st.info(f"טוען את פרופיל הכתיבה של @{TOMER_HANDLE} מ-X...")
         if st.button("📡 טען פרופיל טון", use_container_width=True, type="primary"):
             uid = fetch_user_id(TOMER_HANDLE)
             if uid:
-                with st.spinner(f"מוריד עד 3,200 ציוצים של @{TOMER_HANDLE}..."):
+                with st.spinner(f"מוריד ציוצים של @{TOMER_HANDLE}..."):
                     tweets = fetch_client_tweets(uid)
                 if tweets:
                     st.session_state.tweet_count = len(tweets)
                     with st.spinner(f"מנתח {len(tweets)} ציוצים עם AI..."):
                         st.session_state.tone_profile = build_tone_profile(tuple(tweets))
+                    save_tone_profile_to_disk(st.session_state.tone_profile, len(tweets))
                     save_poller_config()
                     st.success(f"✅ פרופיל טון מוכן — {len(tweets)} ציוצים נותחו")
                     st.rerun()
