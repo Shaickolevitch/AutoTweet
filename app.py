@@ -3,19 +3,15 @@ app.py — תומר אביטל · Reply Agent
 """
 
 import streamlit as st
-from datetime import datetime, timezone, timedelta
-import time
+from datetime import datetime
 
 from helpers import (
     GLOBAL_CSS, TOMER_HANDLE, TOMER_NAME_HE, TOMER_NAME_EN, APP_TITLE, APP_ICON,
     fetch_user_id, fetch_client_tweets, fetch_target_tweets,
-    build_tone_profile, generate_reply, post_reply, save_poller_config,
+    build_tone_profile, generate_reply, save_poller_config,
     save_tone_profile_to_disk, load_tone_profile_from_disk,
 )
-from db import (
-    log_posted_reply, schedule_reply, fetch_due_scheduled,
-    update_scheduled_status,
-)
+from db import log_generated_reply
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide")
@@ -27,44 +23,10 @@ for key, default in {
     "tweet_count": 0,
     "target_accounts": [],
     "feed": {},
-    "posted": set(),
-    "last_auto_check": 0.0,
     "confirm_refresh": False,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
-
-
-# ── Auto-post scheduler ───────────────────────────────────────────────────────
-def run_scheduler():
-    now = time.time()
-    if now - st.session_state.last_auto_check < 60:
-        return
-    st.session_state.last_auto_check = now
-    due = fetch_due_scheduled()
-    if not due:
-        return
-    posted_count = 0
-    for row in due:
-        if row.get("status") == "draft":
-            continue
-        success = post_reply(row["tweet_id"], row["reply_text"])
-        if success:
-            update_scheduled_status(row["id"], "posted")
-            log_posted_reply(
-                client_handle=TOMER_HANDLE,
-                tweet_id=row["tweet_id"],
-                author_handle=row["author_handle"],
-                original_text=row["original_text"],
-                reply_text=row["reply_text"],
-            )
-            posted_count += 1
-        else:
-            update_scheduled_status(row["id"], "failed", "Auto-post failed")
-    if posted_count:
-        st.toast(f"⏰ פורסמו {posted_count} תגובות מתוזמנות!", icon="✅")
-
-run_scheduler()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -182,8 +144,7 @@ with st.sidebar:
             st.success(msg) if new_items else st.info(msg)
 
     st.markdown("---")
-    st.page_link("pages/1_📅_Schedule.py", label="📅 תגובות מתוזמנות")
-    st.page_link("pages/2_📜_History.py",  label="📜 היסטוריית פרסומים")
+    st.page_link("pages/2_📜_History.py", label="📜 היסטוריית תגובות")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -215,7 +176,7 @@ sorted_feed = sorted(
 
 for tweet_id, item in sorted_feed:
     date_str = item.get("created_at", "")[:10]
-    is_hebrew = any("\u0590" <= c <= "\u05FF" for c in item["text"])
+    is_hebrew = any("֐" <= c <= "׿" for c in item["text"])
     text_class = "tweet-text" if is_hebrew else "tweet-text-ltr"
 
     st.markdown(f"""
@@ -235,6 +196,13 @@ for tweet_id, item in sorted_feed:
                     author_handle=item["author_handle"],
                 )
             st.session_state.feed[tweet_id]["reply"] = reply
+            log_generated_reply(
+                client_handle=TOMER_HANDLE,
+                tweet_id=tweet_id,
+                author_handle=item["author_handle"],
+                original_text=item["text"],
+                reply_text=reply,
+            )
             st.rerun()
 
     if item.get("reply"):
@@ -254,7 +222,7 @@ for tweet_id, item in sorted_feed:
         )
         st.session_state.feed[tweet_id]["reply"] = edited
 
-        col_copy, col_post, col_sched, col_regen = st.columns([2, 2, 2, 2])
+        col_copy, col_regen = st.columns([2, 2])
 
         with col_copy:
             st.markdown(
@@ -268,29 +236,6 @@ for tweet_id, item in sorted_feed:
                 unsafe_allow_html=True,
             )
 
-        with col_post:
-            if tweet_id in st.session_state.posted:
-                st.markdown('<span class="status-pill pill-posted">✓ פורסם</span>', unsafe_allow_html=True)
-            else:
-                if st.button("🚀 פרסם עכשיו", key=f"post_{tweet_id}"):
-                    with st.spinner("מפרסם..."):
-                        ok = post_reply(tweet_id, edited)
-                    if ok:
-                        st.session_state.posted.add(tweet_id)
-                        log_posted_reply(
-                            client_handle=TOMER_HANDLE,
-                            tweet_id=tweet_id,
-                            author_handle=item["author_handle"],
-                            original_text=item["text"],
-                            reply_text=edited,
-                        )
-                        st.success("✅ פורסם!")
-                        st.rerun()
-
-        with col_sched:
-            if st.button("⏰ תזמן", key=f"sched_btn_{tweet_id}"):
-                st.session_state[f"show_sched_{tweet_id}"] = not st.session_state.get(f"show_sched_{tweet_id}", False)
-
         with col_regen:
             if st.button("🔁 כתוב מחדש", key=f"regen_{tweet_id}"):
                 with st.spinner("כותב מחדש..."):
@@ -300,29 +245,13 @@ for tweet_id, item in sorted_feed:
                         author_handle=item["author_handle"],
                     )
                 st.session_state.feed[tweet_id]["reply"] = new_reply
+                log_generated_reply(
+                    client_handle=TOMER_HANDLE,
+                    tweet_id=tweet_id,
+                    author_handle=item["author_handle"],
+                    original_text=item["text"],
+                    reply_text=new_reply,
+                )
                 st.rerun()
-
-        if st.session_state.get(f"show_sched_{tweet_id}"):
-            sc1, sc2, sc3 = st.columns([2, 2, 2])
-            with sc1:
-                sched_date = st.date_input("תאריך", value=datetime.now().date() + timedelta(days=1), key=f"sdate_{tweet_id}")
-            with sc2:
-                sched_time = st.time_input("שעה (UTC)", value=datetime.now().time(), key=f"stime_{tweet_id}")
-            with sc3:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("✅ אשר תזמון", key=f"conf_{tweet_id}"):
-                    scheduled_dt = datetime.combine(sched_date, sched_time, tzinfo=timezone.utc)
-                    ok = schedule_reply(
-                        client_handle=TOMER_HANDLE,
-                        tweet_id=tweet_id,
-                        author_handle=item["author_handle"],
-                        original_text=item["text"],
-                        reply_text=edited,
-                        scheduled_for=scheduled_dt,
-                    )
-                    if ok:
-                        st.success(f"✅ מתוזמן ל-{scheduled_dt.strftime('%d/%m %H:%M')} UTC")
-                        st.session_state[f"show_sched_{tweet_id}"] = False
-                        st.rerun()
 
     st.markdown("---")

@@ -90,15 +90,6 @@ def fetch_target_tweets(user_id: str, count: int = 5) -> list[dict]:
         return []
 
 
-def post_reply(tweet_id: str, reply_text: str) -> bool:
-    try:
-        get_x_client().create_tweet(text=reply_text, in_reply_to_tweet_id=tweet_id)
-        return True
-    except Exception as e:
-        st.error(f"שגיאה בפרסום: {e}")
-        return False
-
-
 # ── AI helpers ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=7200)
 def build_tone_profile(samples: tuple[str, ...]) -> str:
@@ -206,6 +197,22 @@ h1, h2, h3 {
 section[data-testid="stSidebar"] {
     background: #111111 !important;
     border-right: 1px solid #222;
+}
+section[data-testid="stSidebar"] * {
+    color: #d0d0d0 !important;
+}
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea {
+    background: #1c1c1c !important;
+    border-color: #333 !important;
+    color: #e0e0e0 !important;
+}
+section[data-testid="stSidebar"] .stSlider [data-testid="stTickBar"] span,
+section[data-testid="stSidebar"] label {
+    color: #c0c0c0 !important;
+}
+section[data-testid="stSidebar"] a {
+    color: #e94560 !important;
 }
 
 /* Brand header */

@@ -1,5 +1,5 @@
 """
-pages/2_📜_History.py — היסטוריית פרסומים
+pages/2_📜_History.py — היסטוריית תגובות שנוצרו
 """
 
 import streamlit as st
@@ -13,7 +13,7 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 st.markdown(f"""
 <div class="page-title">
-    📜 היסטוריית פרסומים <span>· {TOMER_NAME_HE}</span>
+    📜 היסטוריית תגובות <span>· {TOMER_NAME_HE}</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -46,8 +46,8 @@ all_rows = fetch_history(client_handle=TOMER_HANDLE, limit=10000)
 unique_accounts = len(set(r["author_handle"] for r in all_rows))
 
 s1, s2, s3 = st.columns(3)
-s1.markdown(f'<div class="stat-card"><div class="stat-num">{len(all_rows)}</div><div class="stat-label">סה"כ תגובות שפורסמו</div></div>', unsafe_allow_html=True)
-s2.markdown(f'<div class="stat-card"><div class="stat-num">{unique_accounts}</div><div class="stat-label">חשבונות שהגיב להם</div></div>', unsafe_allow_html=True)
+s1.markdown(f'<div class="stat-card"><div class="stat-num">{len(all_rows)}</div><div class="stat-label">סה"כ תגובות שנוצרו</div></div>', unsafe_allow_html=True)
+s2.markdown(f'<div class="stat-card"><div class="stat-num">{unique_accounts}</div><div class="stat-label">חשבונות שנוצרו תגובות עבורם</div></div>', unsafe_allow_html=True)
 if all_rows:
     latest = all_rows[0]["posted_at"][:10]
     s3.markdown(f'<div class="stat-card"><div class="stat-num" style="font-size:20px">{latest}</div><div class="stat-label">פעילות אחרונה</div></div>', unsafe_allow_html=True)
@@ -59,14 +59,14 @@ st.markdown("---")
 view_mode = st.radio("תצוגה", ["כרטיסיות", "טבלה"], horizontal=True, label_visibility="collapsed")
 
 if not rows:
-    st.info("אין היסטוריה עדיין. פרסם תגובות כדי לראות אותן כאן.")
+    st.info("אין היסטוריה עדיין. צור תגובות כדי לראות אותן כאן.")
     st.stop()
 
 if view_mode == "טבלה":
     import pandas as pd
     df = pd.DataFrame(rows)[["posted_at", "author_handle", "original_text", "reply_text"]]
     df["posted_at"] = pd.to_datetime(df["posted_at"]).dt.strftime("%Y-%m-%d %H:%M")
-    df.columns = ["תאריך פרסום", "חשבון", "ציוץ מקורי", "תגובה"]
+    df.columns = ["תאריך יצירה", "חשבון", "ציוץ מקורי", "תגובה"]
     st.dataframe(df, use_container_width=True, height=600)
     csv = df.to_csv(index=False)
     st.download_button(
@@ -77,15 +77,15 @@ if view_mode == "טבלה":
     )
 else:
     for row in rows:
-        posted_dt = row["posted_at"][:16].replace("T", " ")
-        is_hebrew = any("\u0590" <= c <= "\u05FF" for c in row["original_text"])
+        generated_dt = row["posted_at"][:16].replace("T", " ")
+        is_hebrew = any("֐" <= c <= "׿" for c in row["original_text"])
         text_class = "tweet-text" if is_hebrew else "tweet-text-ltr"
 
         st.markdown(f"""
         <div class="tweet-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <span class="tweet-author">@{row['author_handle']}</span>
-                <span style="font-family:monospace;font-size:11px;color:#555">📅 {posted_dt} UTC</span>
+                <span style="font-family:monospace;font-size:11px;color:#555">📅 {generated_dt} UTC</span>
             </div>
             <div class="{text_class}" style="font-size:13px;color:#888;margin-bottom:10px;
                         border-right:2px solid #333;padding-right:10px;">
