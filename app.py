@@ -7,9 +7,9 @@ from datetime import datetime
 
 from helpers import (
     GLOBAL_CSS, TOMER_HANDLE, TOMER_NAME_HE, TOMER_NAME_EN, APP_TITLE, APP_ICON,
-    fetch_user_id, fetch_client_tweets, fetch_target_tweets,
+    fetch_user_id, fetch_target_tweets,
     build_tone_profile, generate_reply, save_poller_config,
-    save_tone_profile_to_disk, load_tone_profile_from_disk,
+    save_tone_profile_to_disk, load_tone_profile_from_disk, load_tweets_from_file,
 )
 from db import log_generated_reply
 
@@ -77,22 +77,19 @@ with st.sidebar:
                     st.session_state["confirm_refresh"] = False
                     st.rerun()
     else:
-        st.info(f"טוען את פרופיל הכתיבה של @{TOMER_HANDLE} מ-X...")
+        st.info(f"טוען את פרופיל הכתיבה של @{TOMER_HANDLE} מקובץ...")
         if st.button("📡 טען פרופיל טון", use_container_width=True, type="primary"):
-            uid = fetch_user_id(TOMER_HANDLE)
-            if uid:
-                with st.spinner(f"מוריד ציוצים של @{TOMER_HANDLE}..."):
-                    tweets = fetch_client_tweets(uid)
-                if tweets:
-                    st.session_state.tweet_count = len(tweets)
-                    with st.spinner(f"מנתח {len(tweets)} ציוצים עם AI..."):
-                        st.session_state.tone_profile = build_tone_profile(tuple(tweets))
-                    save_tone_profile_to_disk(st.session_state.tone_profile, len(tweets))
-                    save_poller_config()
-                    st.success(f"✅ פרופיל טון מוכן — {len(tweets)} ציוצים נותחו")
-                    st.rerun()
-                else:
-                    st.warning("לא נמצאו ציוצים")
+            tweets = load_tweets_from_file()
+            if not tweets:
+                st.error("לא נמצא tomer_tweets.json או שהקובץ ריק — הרץ את download_tomer_tweets.py קודם")
+            else:
+                st.session_state.tweet_count = len(tweets)
+                with st.spinner(f"מנתח {len(tweets)} ציוצים עם AI..."):
+                    st.session_state.tone_profile = build_tone_profile(tuple(tweets))
+                save_tone_profile_to_disk(st.session_state.tone_profile, len(tweets))
+                save_poller_config()
+                st.success(f"✅ פרופיל טון מוכן — {len(tweets)} ציוצים נותחו")
+                st.rerun()
 
     st.markdown("---")
 

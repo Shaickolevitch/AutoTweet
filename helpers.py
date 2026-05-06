@@ -164,6 +164,20 @@ def save_poller_config():
 
 # ── Tone profile disk cache ────────────────────────────────────────────────────
 TONE_PROFILE_PATH = Path(__file__).parent / "tomer_tone_profile.json"
+TWEETS_FILE_PATH  = Path(__file__).parent / "tomer_tweets.json"
+
+
+def load_tweets_from_file() -> list[str]:
+    path = Path(__file__).parent / "tomer_tweets.json"
+    if not path.exists():
+        return []
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        tweets = data
+    else:
+        tweets = data.get("tweets", [])
+    return [t["text"] if isinstance(t, dict) else t for t in tweets]
 
 def save_tone_profile_to_disk(profile: str, tweet_count: int):
     with open(TONE_PROFILE_PATH, "w", encoding="utf-8") as f:
