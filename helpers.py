@@ -120,7 +120,7 @@ def fetch_target_tweets(user_id: str, count: int = 5) -> list[dict]:
     try:
         resp = get_x_client().get_users_tweets(
             id=user_id,
-            max_results=min(max(count, 5), 100),
+            max_results=min(count, 100),
             tweet_fields=["text", "created_at"],
             exclude=["retweets"],
         )

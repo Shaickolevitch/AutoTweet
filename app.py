@@ -128,7 +128,7 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    tweets_per = st.slider("ציוצים לחשבון", 1, 10, 5, help="כמה ציוצים אחרונים לטעון לכל חשבון")
+    tweets_per = st.slider("ציוצים לחשבון", 5, 50, 10, help="כמה ציוצים אחרונים לטעון לכל חשבון")
 
     if st.button("🔄 רענן פיד", use_container_width=True, type="primary"):
         if not st.session_state.target_accounts:
@@ -257,30 +257,21 @@ for tweet_id, item in sorted_feed:
             unsafe_allow_html=True,
         )
 
-        st.code(reply_text, language=None)
-
-        col_copy, col_regen = st.columns([2, 2])
-
-        with col_copy:
-            if st.button("📋 העתק", key=f"copy_{tweet_id}"):
-                st.toast("✅ הועתק!")
-
-        with col_regen:
-            if st.button("🔁 כתוב מחדש", key=f"regen_{tweet_id}"):
-                with st.spinner("כותב מחדש..."):
-                    new_reply = generate_reply(
-                        tweet_text=item["text"],
-                        tone_profile=st.session_state.tone_profile,
-                        author_handle=item["author_handle"],
-                    )
-                st.session_state.feed[tweet_id]["reply"] = new_reply
-                log_generated_reply(
-                    client_handle=TOMER_HANDLE,
-                    tweet_id=tweet_id,
+        if st.button("🔁 כתוב מחדש", key=f"regen_{tweet_id}"):
+            with st.spinner("כותב מחדש..."):
+                new_reply = generate_reply(
+                    tweet_text=item["text"],
+                    tone_profile=st.session_state.tone_profile,
                     author_handle=item["author_handle"],
-                    original_text=item["text"],
-                    reply_text=new_reply,
                 )
-                st.rerun()
+            st.session_state.feed[tweet_id]["reply"] = new_reply
+            log_generated_reply(
+                client_handle=TOMER_HANDLE,
+                tweet_id=tweet_id,
+                author_handle=item["author_handle"],
+                original_text=item["text"],
+                reply_text=new_reply,
+            )
+            st.rerun()
 
     st.markdown("---")
