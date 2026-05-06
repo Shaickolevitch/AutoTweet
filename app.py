@@ -194,7 +194,6 @@ with st.sidebar:
     st.session_state.auto_refresh_interval = _interval_options[selected_label]
 
     st.markdown("---")
-    st.page_link("pages/2_📜_History.py", label="📜 היסטוריית תגובות")
 
 
 # ── Auto-refresh ───────────────────────────────────────────────────────────────
