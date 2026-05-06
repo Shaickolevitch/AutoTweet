@@ -5,6 +5,7 @@ app.py — תומר אביטל · Reply Agent
 import streamlit as st
 from datetime import datetime
 import re
+from streamlit_autorefresh import st_autorefresh
 
 from helpers import (
     GLOBAL_CSS, TOMER_HANDLE, TOMER_NAME_HE, TOMER_NAME_EN, APP_TITLE, APP_ICON,
@@ -182,8 +183,33 @@ with st.sidebar:
             else:
                 st.info("אין ציוצים חדשים")
 
+    _interval_options = {
+        "כבוי": 0,
+        "כל 5 דקות": 5 * 60,
+        "כל 15 דקות": 15 * 60,
+        "כל 30 דקות": 30 * 60,
+        "כל שעה": 60 * 60,
+    }
+    selected_label = st.selectbox("רענן אוטומטי", list(_interval_options.keys()), label_visibility="visible")
+    st.session_state.auto_refresh_interval = _interval_options[selected_label]
+
     st.markdown("---")
     st.page_link("pages/2_📜_History.py", label="📜 היסטוריית תגובות")
+
+
+# ── Auto-refresh ───────────────────────────────────────────────────────────────
+_refresh_interval = st.session_state.get("auto_refresh_interval", 0)
+if _refresh_interval > 0:
+    st_autorefresh(interval=_refresh_interval * 1000, key="auto_refresh")
+    if st.session_state.target_accounts and st.session_state.tone_profile:
+        new_items = {}
+        for acc in st.session_state.target_accounts:
+            for t in fetch_target_tweets(acc["user_id"], count=10):
+                tid = t["id"]
+                if tid not in st.session_state.feed:
+                    new_items[tid] = {**t, "author_handle": acc["handle"], "reply": None}
+        if new_items:
+            st.session_state.feed.update(new_items)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
