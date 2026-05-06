@@ -18,7 +18,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Filters ────────────────────────────────────────────────────────────────────
-f1, f2, f3, f4 = st.columns([3, 2, 2, 1])
+f1, f2, f3, f4, f5 = st.columns([3, 2, 2, 1, 1])
 with f1:
     search = st.text_input("🔍 חיפוש", placeholder="חיפוש בציוץ או תגובה...", label_visibility="collapsed")
 with f2:
@@ -27,6 +27,9 @@ with f3:
     limit = st.selectbox("הצג אחרונים", [25, 50, 100, 250], label_visibility="collapsed")
 with f4:
     sort_dir = st.selectbox("מיון", ["חדש לישן", "ישן לחדש"], label_visibility="collapsed")
+with f5:
+    if st.button("🔄 רענן", use_container_width=True):
+        st.rerun()
 
 st.markdown("---")
 
