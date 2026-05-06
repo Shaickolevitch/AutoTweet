@@ -4,13 +4,14 @@ app.py — תומר אביטל · Reply Agent
 
 import streamlit as st
 from datetime import datetime
+import re
 
 from helpers import (
     GLOBAL_CSS, TOMER_HANDLE, TOMER_NAME_HE, TOMER_NAME_EN, APP_TITLE, APP_ICON,
     fetch_user_id, fetch_target_tweets,
     build_tone_profile, generate_reply, save_poller_config,
     save_tone_profile_to_disk, load_tone_profile_from_disk, load_tweets_from_file,
-    expand_tco_urls,
+    expand_tco_urls, fetch_link_preview,
 )
 from db import log_generated_reply
 
@@ -184,6 +185,40 @@ for tweet_id, item in sorted_feed:
         <div class="{text_class}">{display_text}</div>
     </div>
     """, unsafe_allow_html=True)
+
+    url_matches = re.findall(r"https?://\S+", display_text)
+    if url_matches:
+        preview = fetch_link_preview(url_matches[0])
+        if preview:
+            img_html = (
+                f'<img src="{preview["image"]}" style="width:100%;max-height:180px;'
+                f'object-fit:cover;border-radius:6px 6px 0 0;display:block;">'
+                if preview.get("image") else ""
+            )
+            desc_html = (
+                f'<div style="font-size:12px;color:#888;margin-top:4px;'
+                f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+                f'{preview["description"][:140]}</div>'
+                if preview.get("description") else ""
+            )
+            st.markdown(f"""
+            <a href="{preview['url']}" target="_blank" style="text-decoration:none;">
+              <div style="background:#1a1a1a;border:1px solid #333;border-radius:8px;
+                          overflow:hidden;margin-bottom:10px;max-width:480px;">
+                {img_html}
+                <div style="padding:10px 12px;">
+                  <div style="font-size:13px;font-weight:600;color:#e0e0e0;
+                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    {preview['title']}
+                  </div>
+                  {desc_html}
+                  <div style="font-size:11px;color:#555;margin-top:6px;font-family:monospace;">
+                    {preview['url'][:60]}{'…' if len(preview['url']) > 60 else ''}
+                  </div>
+                </div>
+              </div>
+            </a>
+            """, unsafe_allow_html=True)
 
     col_gen, _ = st.columns([2, 5])
     with col_gen:

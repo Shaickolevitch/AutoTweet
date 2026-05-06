@@ -76,6 +76,36 @@ def fetch_client_tweets(user_id: str, max_results: int = 3200) -> list[str]:
     return texts
 
 
+_PREVIEW_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+}
+
+def fetch_link_preview(url: str) -> dict | None:
+    try:
+        from bs4 import BeautifulSoup
+        resp = requests.get(url, timeout=5, headers=_PREVIEW_HEADERS)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        def og(prop):
+            tag = soup.find("meta", property=prop) or soup.find("meta", attrs={"name": prop})
+            return tag["content"].strip() if tag and tag.get("content") else None
+
+        title = og("og:title") or (soup.title.string.strip() if soup.title else None)
+        description = og("og:description")
+        image = og("og:image")
+
+        if not title:
+            return None
+        return {"title": title, "description": description, "image": image, "url": url}
+    except Exception:
+        return None
+
+
 def expand_tco_urls(text: str) -> str:
     for url in re.findall(r"https://t\.co/\S+", text):
         try:
