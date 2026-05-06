@@ -244,19 +244,13 @@ for tweet_id, item in sorted_feed:
     if item.get("reply"):
         reply_text = item["reply"]
         char_count = len(reply_text)
-        color = "#4ade80" if char_count <= 270 else "#f87171"
+        count_color = "#4ade80" if char_count <= 270 else "#f87171"
 
         st.markdown(f'<div class="reply-box">{reply_text}</div>', unsafe_allow_html=True)
         st.markdown(
-            f'<span style="font-size:11px;color:{color};font-family:monospace">{char_count}/270 תווים</span>',
+            f'<span style="font-size:12px;color:{count_color};font-family:monospace">{char_count}/270 תווים</span>',
             unsafe_allow_html=True,
         )
-
-        edited = st.text_area(
-            "ערוך", value=reply_text, key=f"edit_{tweet_id}",
-            height=80, label_visibility="collapsed",
-        )
-        st.session_state.feed[tweet_id]["reply"] = edited
 
         col_copy, col_regen = st.columns([2, 2])
 

@@ -255,7 +255,7 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid #222;
 }
 section[data-testid="stSidebar"] * {
-    color: #d0d0d0 !important;
+    color: #cccccc !important;
 }
 section[data-testid="stSidebar"] input,
 section[data-testid="stSidebar"] textarea {
@@ -263,12 +263,16 @@ section[data-testid="stSidebar"] textarea {
     border-color: #333 !important;
     color: #e0e0e0 !important;
 }
-section[data-testid="stSidebar"] .stSlider [data-testid="stTickBar"] span,
 section[data-testid="stSidebar"] label {
-    color: #c0c0c0 !important;
+    color: #cccccc !important;
 }
 section[data-testid="stSidebar"] a {
     color: #e94560 !important;
+}
+
+/* Buttons */
+.stButton > button {
+    color: #ffffff !important;
 }
 
 /* Brand header */
@@ -307,7 +311,7 @@ section[data-testid="stSidebar"] a {
 }
 .brand-desc {
     font-size: 12px;
-    color: #888;
+    color: #aaaaaa;
     margin-top: 8px;
     direction: rtl;
 }
@@ -336,14 +340,14 @@ section[data-testid="stSidebar"] a {
 .tweet-text {
     font-size: 15px;
     line-height: 1.7;
-    color: #e0e0e0;
+    color: #f0f0f0;
     direction: rtl;
     text-align: right;
 }
 .tweet-text-ltr {
     font-size: 15px;
     line-height: 1.7;
-    color: #e0e0e0;
+    color: #f0f0f0;
 }
 
 /* Reply box */
@@ -355,7 +359,7 @@ section[data-testid="stSidebar"] a {
     padding: 14px 16px;
     font-size: 14px;
     line-height: 1.7;
-    color: #86efac;
+    color: #a8ffb0;
     direction: rtl;
     text-align: right;
     margin-bottom: 10px;
@@ -368,7 +372,7 @@ section[data-testid="stSidebar"] a {
     padding: 12px 16px;
     border-radius: 0 8px 8px 0;
     font-size: 12px;
-    color: #aaa;
+    color: #aaaaaa;
     font-family: 'DM Mono', monospace;
     direction: rtl;
     text-align: right;
@@ -392,7 +396,7 @@ section[data-testid="stSidebar"] a {
 .section-label {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
-    color: #555;
+    color: #888888;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     margin-bottom: 8px;
@@ -407,7 +411,7 @@ section[data-testid="stSidebar"] a {
     text-align: center;
 }
 .stat-num   { font-family: 'Heebo', sans-serif; font-size: 30px; font-weight: 900; color: #e94560; }
-.stat-label { font-size: 11px; color: #666; margin-top: 4px; }
+.stat-label { font-size: 11px; color: #aaaaaa; margin-top: 4px; }
 
 /* Page title */
 .page-title {
