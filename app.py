@@ -259,39 +259,49 @@ for tweet_id, item in sorted_feed:
     </div>
     """, unsafe_allow_html=True)
 
-    url_matches = re.findall(r"https?://\S+", display_text)
-    if url_matches:
-        preview = fetch_link_preview(url_matches[0])
-        if preview:
-            img_html = (
-                f'<img src="{preview["image"]}" style="width:100%;max-height:180px;'
-                f'object-fit:cover;border-radius:6px 6px 0 0;display:block;">'
-                if preview.get("image") else ""
-            )
-            desc_html = (
-                f'<div style="font-size:12px;color:#888;margin-top:4px;'
-                f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
-                f'{preview["description"][:140]}</div>'
-                if preview.get("description") else ""
-            )
-            st.markdown(f"""
-            <a href="{preview['url']}" target="_blank" style="text-decoration:none;">
-              <div style="background:#1a1a1a;border:1px solid #333;border-radius:8px;
-                          overflow:hidden;margin-bottom:10px;max-width:480px;">
-                {img_html}
-                <div style="padding:10px 12px;">
-                  <div style="font-size:13px;font-weight:600;color:#e0e0e0;
-                               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                    {preview['title']}
-                  </div>
-                  {desc_html}
-                  <div style="font-size:11px;color:#555;margin-top:6px;font-family:monospace;">
-                    {preview['url'][:60]}{'…' if len(preview['url']) > 60 else ''}
-                  </div>
-                </div>
+    # Fetch and cache preview once per tweet
+    if "preview" not in item:
+        url_matches = re.findall(r"https?://\S+", display_text)
+        fetched = fetch_link_preview(url_matches[0]) if url_matches else None
+        st.session_state.feed[tweet_id]["preview"] = fetched
+
+    preview = item.get("preview")
+    if preview:
+        img_html = (
+            f'<img src="{preview["image"]}" style="width:100%;max-height:180px;'
+            f'object-fit:cover;border-radius:6px 6px 0 0;display:block;">'
+            if preview.get("image") else ""
+        )
+        desc_html = (
+            f'<div style="font-size:12px;color:#888;margin-top:4px;'
+            f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+            f'{preview["description"][:140]}</div>'
+            if preview.get("description") else ""
+        )
+        st.markdown(f"""
+        <a href="{preview['url']}" target="_blank" style="text-decoration:none;">
+          <div style="background:#1a1a1a;border:1px solid #333;border-radius:8px;
+                      overflow:hidden;margin-bottom:10px;max-width:480px;">
+            {img_html}
+            <div style="padding:10px 12px;">
+              <div style="font-size:13px;font-weight:600;color:#e0e0e0;
+                           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                {preview['title']}
               </div>
-            </a>
-            """, unsafe_allow_html=True)
+              {desc_html}
+              <div style="font-size:11px;color:#555;margin-top:6px;font-family:monospace;">
+                {preview['url'][:60]}{'…' if len(preview['url']) > 60 else ''}
+              </div>
+            </div>
+          </div>
+        </a>
+        """, unsafe_allow_html=True)
+
+    _preview = item.get("preview")
+    _link_context = (
+        " — ".join(filter(None, [_preview.get("title"), _preview.get("description")]))
+        if _preview else None
+    )
 
     col_gen, _ = st.columns([2, 5])
     with col_gen:
@@ -301,6 +311,7 @@ for tweet_id, item in sorted_feed:
                     tweet_text=item["text"],
                     tone_profile=st.session_state.tone_profile,
                     author_handle=item["author_handle"],
+                    link_context=_link_context,
                 )
             st.session_state.feed[tweet_id]["reply"] = reply
             log_generated_reply(
@@ -329,6 +340,7 @@ for tweet_id, item in sorted_feed:
                     tweet_text=item["text"],
                     tone_profile=st.session_state.tone_profile,
                     author_handle=item["author_handle"],
+                    link_context=_link_context,
                 )
             st.session_state.feed[tweet_id]["reply"] = new_reply
             log_generated_reply(

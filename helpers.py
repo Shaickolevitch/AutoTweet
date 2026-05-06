@@ -168,7 +168,11 @@ def build_tone_profile(samples: tuple[str, ...]) -> str:
     return msg.content[0].text
 
 
-def generate_reply(tweet_text: str, tone_profile: str, author_handle: str) -> str:
+def generate_reply(tweet_text: str, tone_profile: str, author_handle: str, link_context: str | None = None) -> str:
+    link_section = (
+        f"\nLINK CONTENT (article/page linked in the tweet):\n{link_context}\n"
+        if link_context else ""
+    )
     msg = get_anthropic_client().messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=300,
@@ -178,7 +182,8 @@ def generate_reply(tweet_text: str, tone_profile: str, author_handle: str) -> st
                 f"You are ghostwriting a reply on X for Tomer Avital (@TomerAvital1), "
                 "Israeli civic entrepreneur and investigative journalist.\n\n"
                 f"TOMER'S TONE PROFILE:\n{tone_profile}\n\n"
-                f"TWEET TO REPLY TO (by @{author_handle}):\n{tweet_text}\n\n"
+                f"TWEET TO REPLY TO (by @{author_handle}):\n{tweet_text}\n"
+                f"{link_section}\n"
                 "Write ONE reply that:\n"
                 "- Sounds exactly like Tomer — match his voice precisely\n"
                 "- Is in Hebrew unless the original tweet is in English\n"
