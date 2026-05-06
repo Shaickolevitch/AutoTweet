@@ -10,6 +10,7 @@ from helpers import (
     fetch_user_id, fetch_target_tweets,
     build_tone_profile, generate_reply, save_poller_config,
     save_tone_profile_to_disk, load_tone_profile_from_disk, load_tweets_from_file,
+    expand_tco_urls,
 )
 from db import log_generated_reply
 
@@ -173,13 +174,14 @@ sorted_feed = sorted(
 
 for tweet_id, item in sorted_feed:
     date_str = item.get("created_at", "")[:10]
-    is_hebrew = any("֐" <= c <= "׿" for c in item["text"])
+    display_text = expand_tco_urls(item["text"])
+    is_hebrew = any("֐" <= c <= "׿" for c in display_text)
     text_class = "tweet-text" if is_hebrew else "tweet-text-ltr"
 
     st.markdown(f"""
     <div class="tweet-card">
         <div class="tweet-author">@{item['author_handle']} · {date_str}</div>
-        <div class="{text_class}">{item['text']}</div>
+        <div class="{text_class}">{display_text}</div>
     </div>
     """, unsafe_allow_html=True)
 

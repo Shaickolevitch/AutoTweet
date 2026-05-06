@@ -7,6 +7,8 @@ import streamlit as st
 import tweepy
 import anthropic
 import json
+import re
+import requests
 from pathlib import Path
 
 # ── Tomer's fixed config ───────────────────────────────────────────────────────
@@ -72,6 +74,16 @@ def fetch_client_tweets(user_id: str, max_results: int = 3200) -> list[str]:
     except Exception as e:
         st.warning(f"עצרנו אחרי {len(texts)} ציוצים: {e}")
     return texts
+
+
+def expand_tco_urls(text: str) -> str:
+    for url in re.findall(r"https://t\.co/\S+", text):
+        try:
+            resp = requests.head(url, allow_redirects=True, timeout=3)
+            text = text.replace(url, resp.url)
+        except Exception:
+            pass
+    return text
 
 
 def fetch_target_tweets(user_id: str, count: int = 5) -> list[dict]:
