@@ -1,8 +1,16 @@
 """
 db.py — Supabase database layer for Reply Agent.
 
-Tables (run setup_sql() output in Supabase SQL editor once):
+Tables (run in Supabase SQL editor once):
   reply_history — every generated reply
+  access_log    — every successful login
+
+SQL for access_log:
+  create table if not exists access_log (
+      id            bigint generated always as identity primary key,
+      email         text not null,
+      logged_in_at  timestamptz not null default now()
+  );
 """
 
 from __future__ import annotations
@@ -37,6 +45,30 @@ create table if not exists reply_history (
 create index if not exists idx_history_client     on reply_history(client_handle);
 create index if not exists idx_history_posted_at  on reply_history(posted_at desc);
 """
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ACCESS LOG
+# ══════════════════════════════════════════════════════════════════════════════
+def log_access(email: str) -> bool:
+    try:
+        get_supabase().table("access_log").insert({
+            "email": email,
+            "logged_in_at": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+        return True
+    except Exception as e:
+        st.error(f"DB error logging access: {e}")
+        return False
+
+
+def fetch_access_log() -> list[dict]:
+    try:
+        resp = get_supabase().table("access_log").select("*").order("logged_in_at", desc=True).execute()
+        return resp.data or []
+    except Exception as e:
+        st.error(f"DB error fetching access log: {e}")
+        return []
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -14,11 +14,44 @@ from helpers import (
     expand_tco_urls, fetch_link_preview,
     save_watched_accounts, load_watched_accounts,
 )
-from db import log_generated_reply
+from db import log_generated_reply, log_access
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="wide")
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+# ── Authentication ─────────────────────────────────────────────────────────────
+_APP_PASSWORD = "Aa1234567890!"
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+    st.session_state.user_email = ""
+
+if not st.session_state.authenticated:
+    _, col, _ = st.columns([1, 1, 1])
+    with col:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="background:#141414;border:1px solid #333;border-radius:12px;
+                    padding:32px 28px;text-align:center;margin-bottom:24px;">
+            <div style="font-family:Heebo,sans-serif;font-size:22px;font-weight:900;
+                        color:#ffffff;margin-bottom:4px;">{TOMER_NAME_HE}</div>
+            <div style="font-family:monospace;font-size:11px;color:#e94560;
+                        letter-spacing:0.15em;">REPLY AGENT · @{TOMER_HANDLE}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        email = st.text_input("אימייל", placeholder="your@email.com", key="login_email")
+        password = st.text_input("סיסמה", type="password", key="login_password")
+        if st.button("🔐 התחברות", use_container_width=True, type="primary"):
+            if password == _APP_PASSWORD:
+                st.session_state.authenticated = True
+                st.session_state.user_email = email
+                log_access(email)
+                st.rerun()
+            else:
+                st.error("סיסמה שגויה")
+    st.stop()
+
 
 # ── Session state ──────────────────────────────────────────────────────────────
 for key, default in {
