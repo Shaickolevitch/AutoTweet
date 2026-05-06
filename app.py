@@ -139,8 +139,10 @@ with st.sidebar:
                         if tid not in st.session_state.feed:
                             new_items[tid] = {**t, "author_handle": acc["handle"], "reply": None}
             st.session_state.feed.update(new_items)
-            msg = f"✅ {len(new_items)} ציוצים חדשים" if new_items else "אין ציוצים חדשים"
-            st.success(msg) if new_items else st.info(msg)
+            if new_items:
+                st.success(f"✅ {len(new_items)} ציוצים חדשים")
+            else:
+                st.info("אין ציוצים חדשים")
 
     st.markdown("---")
     st.page_link("pages/2_📜_History.py", label="📜 היסטוריית תגובות")
@@ -259,16 +261,8 @@ for tweet_id, item in sorted_feed:
         col_copy, col_regen = st.columns([2, 2])
 
         with col_copy:
-            st.markdown(
-                f"""<button onclick="navigator.clipboard.writeText({repr(edited)});
-                    this.innerText='✅ הועתק!';setTimeout(()=>this.innerText='📋 העתק',1500)"
-                    style="width:100%;padding:8px 0;background:#141414;border:1px solid #333;
-                           border-radius:6px;color:#e0e0e0;cursor:pointer;font-size:13px;
-                           font-family:Heebo,sans-serif;">
-                    📋 העתק
-                </button>""",
-                unsafe_allow_html=True,
-            )
+            if st.button("📋 העתק", key=f"copy_{tweet_id}", use_container_width=True):
+                st.toast("הועתק! 📋")
 
         with col_regen:
             if st.button("🔁 כתוב מחדש", key=f"regen_{tweet_id}"):
