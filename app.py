@@ -3,8 +3,10 @@ app.py — תומר אביטל · Reply Agent
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 from datetime import datetime
 import re
+import json
 
 from helpers import (
     GLOBAL_CSS, TOMER_HANDLE, TOMER_NAME_HE, TOMER_NAME_EN, APP_TITLE, APP_ICON,
@@ -255,8 +257,20 @@ for tweet_id, item in sorted_feed:
         col_copy, col_regen = st.columns([2, 2])
 
         with col_copy:
-            if st.button("📋 העתק", key=f"copy_{tweet_id}", use_container_width=True):
-                st.toast("הועתק! 📋")
+            components.html(
+                f"""
+                <button onclick="navigator.clipboard.writeText({json.dumps(reply_text)}).then(()=>{{
+                    this.innerText='✅ הועתק!';
+                    setTimeout(()=>this.innerText='📋 העתק',1500);
+                }})"
+                style="width:100%;padding:8px 0;background:#141414;border:1px solid #333;
+                       border-radius:6px;color:#ffffff;cursor:pointer;font-size:13px;
+                       font-family:Heebo,sans-serif;">
+                    📋 העתק
+                </button>
+                """,
+                height=45,
+            )
 
         with col_regen:
             if st.button("🔁 כתוב מחדש", key=f"regen_{tweet_id}"):
