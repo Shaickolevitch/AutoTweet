@@ -204,9 +204,22 @@ def save_poller_config():
 
 
 
-# ── Tone profile disk cache ────────────────────────────────────────────────────
-TONE_PROFILE_PATH = Path(__file__).parent / "tomer_tone_profile.json"
-TWEETS_FILE_PATH  = Path(__file__).parent / "tomer_tweets.json"
+# ── Disk cache paths ───────────────────────────────────────────────────────────
+TONE_PROFILE_PATH    = Path(__file__).parent / "tomer_tone_profile.json"
+TWEETS_FILE_PATH     = Path(__file__).parent / "tomer_tweets.json"
+WATCHED_ACCOUNTS_PATH = Path(__file__).parent / "watched_accounts.json"
+
+
+def save_watched_accounts(accounts: list[dict]):
+    with open(WATCHED_ACCOUNTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(accounts, f, indent=2, ensure_ascii=False)
+
+
+def load_watched_accounts() -> list[dict]:
+    if not WATCHED_ACCOUNTS_PATH.exists():
+        return []
+    with open(WATCHED_ACCOUNTS_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def load_tweets_from_file() -> list[str]:

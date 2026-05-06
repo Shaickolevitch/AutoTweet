@@ -3,10 +3,8 @@ app.py — תומר אביטל · Reply Agent
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 from datetime import datetime
 import re
-import json
 
 from helpers import (
     GLOBAL_CSS, TOMER_HANDLE, TOMER_NAME_HE, TOMER_NAME_EN, APP_TITLE, APP_ICON,
@@ -14,6 +12,7 @@ from helpers import (
     build_tone_profile, generate_reply, save_poller_config,
     save_tone_profile_to_disk, load_tone_profile_from_disk, load_tweets_from_file,
     expand_tco_urls, fetch_link_preview,
+    save_watched_accounts, load_watched_accounts,
 )
 from db import log_generated_reply
 
@@ -25,12 +24,14 @@ st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 for key, default in {
     "tone_profile": None,
     "tweet_count": 0,
-    "target_accounts": [],
     "feed": {},
     "confirm_refresh": False,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
+if "target_accounts" not in st.session_state:
+    st.session_state.target_accounts = load_watched_accounts()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -113,6 +114,7 @@ with st.sidebar:
                 uid = fetch_user_id(t)
             if uid:
                 st.session_state.target_accounts.append({"handle": t, "user_id": uid})
+                save_watched_accounts(st.session_state.target_accounts)
                 save_poller_config()
                 st.success(f"✅ נוסף @{t}")
 
@@ -121,6 +123,7 @@ with st.sidebar:
         c1.markdown(f"<span style='color:#e94560;font-family:monospace'>@{acc['handle']}</span>", unsafe_allow_html=True)
         if c2.button("✕", key=f"rm_{i}"):
             st.session_state.target_accounts.pop(i)
+            save_watched_accounts(st.session_state.target_accounts)
             save_poller_config()
             st.rerun()
 
@@ -254,23 +257,13 @@ for tweet_id, item in sorted_feed:
             unsafe_allow_html=True,
         )
 
+        st.code(reply_text, language=None)
+
         col_copy, col_regen = st.columns([2, 2])
 
         with col_copy:
-            components.html(
-                f"""
-                <button onclick="navigator.clipboard.writeText({json.dumps(reply_text)}).then(()=>{{
-                    this.innerText='✅ הועתק!';
-                    setTimeout(()=>this.innerText='📋 העתק',1500);
-                }})"
-                style="width:100%;padding:8px 0;background:#141414;border:1px solid #333;
-                       border-radius:6px;color:#ffffff;cursor:pointer;font-size:13px;
-                       font-family:Heebo,sans-serif;">
-                    📋 העתק
-                </button>
-                """,
-                height=45,
-            )
+            if st.button("📋 העתק", key=f"copy_{tweet_id}"):
+                st.toast("✅ הועתק!")
 
         with col_regen:
             if st.button("🔁 כתוב מחדש", key=f"regen_{tweet_id}"):
