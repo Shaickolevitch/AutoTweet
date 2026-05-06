@@ -213,6 +213,14 @@ sorted_feed = sorted(
     reverse=True,
 )
 
+def linkify(text: str) -> str:
+    return re.sub(
+        r"(https?://\S+)",
+        r'<a href="\1" target="_blank" rel="noopener" '
+        r'style="color:#60a5fa;text-decoration:underline;">\1</a>',
+        text,
+    )
+
 for tweet_id, item in sorted_feed:
     date_str = item.get("created_at", "")[:10]
     display_text = expand_tco_urls(item["text"])
@@ -222,7 +230,7 @@ for tweet_id, item in sorted_feed:
     st.markdown(f"""
     <div class="tweet-card">
         <div class="tweet-author">@{item['author_handle']} · {date_str}</div>
-        <div class="{text_class}">{display_text}</div>
+        <div class="{text_class}">{linkify(display_text)}</div>
     </div>
     """, unsafe_allow_html=True)
 
